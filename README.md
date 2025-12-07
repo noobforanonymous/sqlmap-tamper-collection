@@ -24,7 +24,7 @@ Created by **Regaan** | December 2025
 
 ```bash
 # Clone repository
-git clone https://github.com/YOUR_USERNAME/sqlmap-tamper-collection.git
+git clone https://github.com/noobforanonymous/sqlmap-tamper-collection.git
 
 # Copy to SQLMap tamper directory
 cp sqlmap-tamper-collection/*.py /path/to/sqlmap/tamper/
