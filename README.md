@@ -1,54 +1,47 @@
 # SQLMap Tamper Scripts Collection
 
-![Python](https://img.shields.io/badge/Python-2.7%20%7C%203.x-yellow)
-![SQLMap](https://img.shields.io/badge/SQLMap-Compatible-brightgreen)
-![License](https://img.shields.io/badge/License-GPL%20v2-red)
-
-**Modern WAF bypass tamper scripts for SQLMap (2025)**
+Modern WAF bypass techniques for SQLMap (2025).
 
 Created by **Regaan** | December 2025
 
 ---
 
-## 🚀 Features
+## Features
 
-- ✅ **Cloudflare WAF Bypass** - 2025 techniques
-- ✅ **AWS WAF Bypass** - Modern evasion
-- ✅ **Azure WAF Bypass** - Advanced techniques
-- ✅ **Multiple Evasion Methods** - 6 different techniques
-- ✅ **SQLMap Compatible** - Drop-in replacement
+- Cloudflare WAF bypass (2025)
+- AWS WAF bypass
+- Azure WAF bypass
+- 6 evasion techniques
+- SQLMap compatible
 
 ---
 
-## 📦 Installation
+## Installation
 
 ```bash
-# Clone repository
 git clone https://github.com/noobforanonymous/sqlmap-tamper-collection.git
-
-# Copy to SQLMap tamper directory
 cp sqlmap-tamper-collection/*.py /path/to/sqlmap/tamper/
 ```
 
 ---
 
-## 🎯 Quick Start
+## Quick Start
 
-### Basic Usage:
+### Basic Usage
 ```bash
 python sqlmap.py -u "https://example.com/page?id=1" --tamper=cloudflare2025
 ```
 
-### With Multiple Tampers:
+### With Multiple Tampers
 ```bash
-python sqlmap.py -u "https://example.com/page?id=1" \\
-  --tamper=cloudflare2025,space2comment \\
+python sqlmap.py -u "https://example.com/page?id=1" \
+  --tamper=cloudflare2025,space2comment \
   --random-agent
 ```
 
 ---
 
-## 📖 Tamper Scripts
+## Tamper Scripts
 
 ### cloudflare2025.py
 
@@ -74,13 +67,13 @@ python sqlmap.py -u "https://target.com/page?id=1" --tamper=cloudflare2025
 ```
 
 **Tested Against:**
-- ✅ Cloudflare WAF (2024-2025)
-- ✅ AWS WAF
-- ✅ Azure WAF
+- Cloudflare WAF (2024-2025)
+- AWS WAF
+- Azure WAF
 
 ---
 
-## 🔍 How It Works
+## How It Works
 
 ### Technique 1: Random Case Variation
 ```python
@@ -114,7 +107,7 @@ python sqlmap.py -u "https://target.com/page?id=1" --tamper=cloudflare2025
 
 ---
 
-## 📊 Success Rate
+## Success Rate
 
 | WAF | Success Rate |
 |-----|--------------|
@@ -125,18 +118,18 @@ python sqlmap.py -u "https://target.com/page?id=1" --tamper=cloudflare2025
 
 ---
 
-## 🛠️ Advanced Usage
+## Advanced Usage
 
-### Combine with Other Techniques:
+### Combine with Other Techniques
 ```bash
-python sqlmap.py -u "https://target.com/page?id=1" \\
-  --tamper=cloudflare2025 \\
-  --random-agent \\
-  --delay=2 \\
+python sqlmap.py -u "https://target.com/page?id=1" \
+  --tamper=cloudflare2025 \
+  --random-agent \
+  --delay=2 \
   --threads=1
 ```
 
-### Test Tamper Script:
+### Test Tamper Script
 ```python
 from cloudflare2025 import tamper
 
@@ -148,51 +141,52 @@ print(f"Bypassed: {result}")
 
 ---
 
-## 📝 Requirements
+## Requirements
 
 - SQLMap
 - Python 2.7 or 3.x
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Want to add more tamper scripts? Submit a PR!
+Want to add more tamper scripts? Submit a pull request.
 
 ---
 
-## 📜 License
+## License
 
 GPL v2 - Compatible with SQLMap
 
 ---
 
-## 👤 Author
+## Author
 
 **Regaan**
+- GitHub: [@noobforanonymous](https://github.com/noobforanonymous)
 - Created: December 2025
 
 ---
 
-## 🙏 Credits
+## Credits
 
 Inspired by SQLMap tamper scripts collection.
 
 ---
 
-## ⚠️ Legal Disclaimer
+## Legal Disclaimer
 
-**IMPORTANT - READ BEFORE USE:**
+**IMPORTANT - READ BEFORE USE**
 
-This tool is designed for **authorized security testing only**.
+This tool is designed for authorized security testing only.
 
-- ✅ **DO USE** on systems you own
-- ✅ **DO USE** with written permission
-- ✅ **DO USE** for authorized penetration testing
-- ✅ **DO USE** for bug bounty programs (within scope)
-- ❌ **DO NOT USE** on systems without permission
-- ❌ **DO NOT USE** for illegal activities
-- ❌ **DO NOT USE** to cause harm or damage
+- DO USE on systems you own
+- DO USE with written permission
+- DO USE for authorized penetration testing
+- DO USE for bug bounty programs (within scope)
+- DO NOT USE on systems without permission
+- DO NOT USE for illegal activities
+- DO NOT USE to cause harm or damage
 
 **All security-related tools, experiments, and research are meant strictly for authorized environments.**
 
@@ -203,10 +197,6 @@ Unauthorized access to computer systems is illegal under:
 - Computer Misuse Act in the United Kingdom  
 - Similar laws in other countries
 
-**By using this tool, you agree to use it responsibly and legally.**
+By using this tool, you agree to use it responsibly and legally.
 
 The author (Regaan) is not responsible for any misuse or damage caused by this tool.
-
----
-
-**Happy Hacking! 🎯**
