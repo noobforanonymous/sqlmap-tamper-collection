@@ -180,9 +180,32 @@ Inspired by SQLMap tamper scripts collection.
 
 ---
 
-## ⚠️ Disclaimer
+## ⚠️ Legal Disclaimer
 
-For authorized security testing only.
+**IMPORTANT - READ BEFORE USE:**
+
+This tool is designed for **authorized security testing only**.
+
+- ✅ **DO USE** on systems you own
+- ✅ **DO USE** with written permission
+- ✅ **DO USE** for authorized penetration testing
+- ✅ **DO USE** for bug bounty programs (within scope)
+- ❌ **DO NOT USE** on systems without permission
+- ❌ **DO NOT USE** for illegal activities
+- ❌ **DO NOT USE** to cause harm or damage
+
+**All security-related tools, experiments, and research are meant strictly for authorized environments.**
+
+**I do not support or condone illegal use of security tooling.**
+
+Unauthorized access to computer systems is illegal under:
+- Computer Fraud and Abuse Act (CFAA) in the United States
+- Computer Misuse Act in the United Kingdom  
+- Similar laws in other countries
+
+**By using this tool, you agree to use it responsibly and legally.**
+
+The author (Regaan) is not responsible for any misuse or damage caused by this tool.
 
 ---
 
