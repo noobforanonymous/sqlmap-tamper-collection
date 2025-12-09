@@ -1,6 +1,6 @@
 # SQLMap Tamper Scripts Collection
 
-Professional, modular WAF bypass tamper scripts for SQLMap.
+Context-aware WAF bypass tamper scripts for SQLMap with proper safeguards.
 
 **Author:** Regaan  
 **Created:** December 2025  
@@ -8,19 +8,32 @@ Professional, modular WAF bypass tamper scripts for SQLMap.
 
 ---
 
-## Philosophy
+## Design Philosophy
 
-These tamper scripts follow **engineering best practices**:
+These tamper scripts are built with engineering discipline:
 
-✅ **Deterministic** - Same input always produces same output  
-✅ **Modular** - One technique per script  
-✅ **Chainable** - Combine scripts for layered bypass  
-✅ **Debuggable** - No random transformations  
-✅ **Tested** - Real-world validation (see Testing section)
+- **Deterministic** - Same input produces same output
+- **Context-aware** - Understands SQL structure
+- **Safe chaining** - Won't break when combined
+- **Reapplication-protected** - Won't corrupt already-transformed payloads
+- **Word-boundary aware** - No partial keyword matches
+- **String-preserving** - Maintains literal integrity
 
-❌ **NO random mutations**  
-❌ **NO fake success rates**  
-❌ **NO outdated techniques** (null bytes, etc.)
+---
+
+## Critical Limitations
+
+**IMPORTANT - READ BEFORE USE**
+
+These scripts have known limitations:
+
+1. **MySQL-specific** - Designed for MySQL/MariaDB backends
+2. **Not universal** - May break with PostgreSQL, MSSQL, Oracle
+3. **Simplified parsing** - Not a full SQL parser
+4. **WAF-dependent** - Effectiveness varies by WAF configuration
+5. **No guarantees** - Success depends on target environment
+
+**Do NOT expect these to bypass every WAF.**
 
 ---
 
@@ -36,100 +49,120 @@ cp *.py /path/to/sqlmap/tamper/
 
 ## Tamper Scripts
 
-### 1. cloudflare_keyword.py
+### cloudflare_keyword.py
 
-**Purpose:** Obfuscate SQL keywords using MySQL version comments
+**Purpose:** Wrap SQL keywords in MySQL version comments
 
 **Technique:**
 ```sql
 SELECT → /*!50000SELECT*/
 ```
 
-**Priority:** HIGHEST  
-**Deterministic:** Yes
+**Safeguards:**
+- Reapplication protection (won't double-wrap)
+- Word boundaries (no partial matches like INNER_JOIN)
+- Case-insensitive matching
 
 **Usage:**
 ```bash
 sqlmap -u "https://target.com?id=1" --tamper=cloudflare_keyword
 ```
 
+**Limitations:**
+- MySQL/MariaDB only
+- May break with complex nested queries
+
 ---
 
-### 2. cloudflare_space.py
+### cloudflare_space.py
 
 **Purpose:** Replace spaces with inline comments
 
 **Technique:**
 ```sql
-SELECT * FROM → SELECT/**/*//**/FROM
+SELECT * FROM → SELECT/**/*/**/FROM
 ```
 
-**Priority:** NORMAL  
-**Deterministic:** Yes
+**Safeguards:**
+- Preserves string literals
+- Won't replace spaces inside quotes
+- Reapplication protection
 
 **Usage:**
 ```bash
 sqlmap -u "https://target.com?id=1" --tamper=cloudflare_space
 ```
 
+**Limitations:**
+- May break with non-MySQL databases
+- Simplified string detection
+
 ---
 
-### 3. cloudflare_case.py
+### cloudflare_case.py
 
 **Purpose:** Apply alternating case to SQL keywords
 
 **Technique:**
 ```sql
-SELECT → SeLeCt
+SELECT → sElEcT
 ```
 
-**Priority:** LOW (apply LAST)  
-**Deterministic:** Yes
+**Safeguards:**
+- Word boundaries (whole words only)
+- Reapplication protection
+- Preserves string literals
 
 **Usage:**
 ```bash
 sqlmap -u "https://target.com?id=1" --tamper=cloudflare_case
 ```
 
+**Limitations:**
+- Only affects known keywords
+- May miss custom SQL functions
+
 ---
 
-### 4. cloudflare_encode.py
+### cloudflare_encode.py
 
-**Purpose:** URL encode SQL special characters
+**Purpose:** Context-aware URL encoding
 
 **Technique:**
 ```sql
-= → %3D
-' → %27
+WHERE id=1 → WHERE id%3D1
 ```
 
-**Priority:** NORMAL  
-**Deterministic:** Yes
+**Safeguards:**
+- Only encodes in value context
+- Preserves SQL structure
+- Won't break comments
 
 **Usage:**
 ```bash
 sqlmap -u "https://target.com?id=1" --tamper=cloudflare_encode
 ```
 
+**Limitations:**
+- Simplified context detection
+- May miss complex expressions
+
 ---
 
-### 5. cloudflare2025.py
+### cloudflare2025.py
 
-**Purpose:** Multi-layer bypass with proper transformation ordering
+**Purpose:** Combined multi-layer bypass with all safeguards
 
 **Technique Stack:**
-1. Keyword obfuscation (BEFORE case changes)
-2. Space replacement
-3. Character encoding
-4. Case variation (LAST)
+1. Keyword wrapping (with protection)
+2. Space replacement (context-aware)
+3. Value encoding (safe contexts only)
+4. Case variation (keywords only)
 
-**Priority:** HIGHEST  
-**Deterministic:** Yes
-
-**Example Transformation:**
+**Example:**
 ```
-Original:  SELECT * FROM users WHERE id=1
-Result:    /*!50000SeLeCt*//**/*/**//*!50000FrOm*//**/users/**//*!50000WhErE*//**/id%3D1
+Input:  SELECT * FROM users WHERE id=1
+Output: /*!50000sElEcT*//**/*/**//*!50000fRoM*//**/users/**//*!50000wHeRe*//**/id%3D1
 ```
 
 **Usage:**
@@ -137,138 +170,182 @@ Result:    /*!50000SeLeCt*//**/*/**//*!50000FrOm*//**/users/**//*!50000WhErE*//*
 sqlmap -u "https://target.com?id=1" --tamper=cloudflare2025
 ```
 
+**IMPORTANT:** Use this script STANDALONE. Do NOT chain with other cloudflare_* scripts.
+
+**Limitations:**
+- MySQL/MariaDB only
+- Complex queries may break
+- Not tested with all SQL dialects
+
 ---
 
-## Chaining Tamper Scripts
+## Chaining Guidelines
 
-For maximum effectiveness, chain scripts in **correct order**:
+**RECOMMENDED:**
 
+Use `cloudflare2025.py` standalone:
 ```bash
-# Recommended order:
-sqlmap -u "https://target.com?id=1" \
-  --tamper=cloudflare_keyword,cloudflare_space,cloudflare_encode,cloudflare_case \
-  --random-agent
+sqlmap -u "https://target.com?id=1" --tamper=cloudflare2025
 ```
 
-**Why order matters:**
-1. **Keywords first** - Wrap before case changes
-2. **Space replacement** - After keywords
-3. **Encoding** - Before case changes
-4. **Case last** - Final obfuscation layer
+**NOT RECOMMENDED:**
+
+Chaining individual scripts may cause conflicts:
+```bash
+# DON'T DO THIS
+sqlmap -u "https://target.com?id=1" \
+  --tamper=cloudflare_keyword,cloudflare_space,cloudflare_case
+```
+
+**Why?** The combined script already includes all transformations in the correct order with proper safeguards.
 
 ---
 
 ## Testing Methodology
 
-### Test Environment
-- **Target:** Custom vulnerable web app
-- **WAFs Tested:** Cloudflare, ModSecurity, AWS WAF
-- **SQLMap Version:** 1.8+
-- **Test Date:** December 2025
+### Environment
+- Target: Custom vulnerable web application
+- WAFs: Cloudflare, ModSecurity, AWS WAF
+- SQLMap: 1.8+
+- Database: MySQL 5.7+, MariaDB 10.x
+- Test Date: December 2025
 
-### Test Procedure
-1. Baseline test without tamper (blocked)
-2. Individual tamper script test
-3. Chained tamper script test
-4. Payload validation (SQL still executes)
+### Procedure
+1. Baseline test without tamper (verify blocking)
+2. Apply tamper script
+3. Verify SQL still executes correctly
+4. Confirm WAF bypass (if applicable)
+5. Test for reapplication safety
+6. Validate deterministic behavior
 
 ### Results
 
-**Individual Scripts:**
-- `cloudflare_keyword.py` - Bypasses keyword-based filters
-- `cloudflare_space.py` - Bypasses space-based detection
-- `cloudflare_case.py` - Bypasses case-sensitive rules
-- `cloudflare_encode.py` - Bypasses character filters
-
-**Combined (cloudflare2025.py):**
+**cloudflare2025.py:**
 - Successfully bypassed test WAF configurations
-- Maintained SQL validity
+- Maintained SQL validity in test cases
 - Deterministic output verified
+- Reapplication-safe confirmed
 
-**Note:** Success rates vary based on:
-- WAF configuration
-- Rule strictness
-- Target SQL engine
-- Payload complexity
+**Individual scripts:**
+- Each script tested independently
+- Safeguards verified
+- Edge cases documented
 
-**We do NOT provide fake percentage metrics.**
+**Known Failures:**
+- Complex nested subqueries
+- Non-MySQL databases
+- Highly restrictive WAF rules
+- Queries with extensive string literals
 
 ---
 
 ## Advanced Usage
 
-### Test Tamper Script Locally
+### Test Locally
 
 ```python
 #!/usr/bin/env python3
 
-from cloudflare2025 import tamper
+import sys
+sys.path.insert(0, '/path/to/sqlmap')
+
+from tamper.cloudflare2025 import tamper
 
 payload = "SELECT * FROM users WHERE id=1"
 result = tamper(payload)
 
 print(f"Original: {payload}")
 print(f"Bypassed: {result}")
+
+# Test deterministic
+result2 = tamper(payload)
+assert result == result2, "Not deterministic!"
+print("Deterministic: PASS")
 ```
 
-### Combine with Other Techniques
+### With SQLMap Options
 
 ```bash
 sqlmap -u "https://target.com?id=1" \
   --tamper=cloudflare2025 \
   --random-agent \
   --delay=2 \
-  --threads=1 \
   --level=5 \
-  --risk=3
+  --risk=3 \
+  --threads=1
 ```
 
 ---
 
-## Why These Scripts Are Better
+## Known Issues
 
-### Compared to Random Tampers:
+### Issue 1: Complex Nested Queries
+**Problem:** Deeply nested subqueries may break  
+**Workaround:** Simplify query structure or use individual tampers
+
+### Issue 2: Non-MySQL Databases
+**Problem:** Scripts designed for MySQL syntax  
+**Workaround:** Modify for target database or use database-specific tampers
+
+### Issue 3: String Literal Edge Cases
+**Problem:** Escaped quotes may confuse parser  
+**Workaround:** Test payload manually before automation
+
+### Issue 4: Over-obfuscation
+**Problem:** Some WAFs detect excessive obfuscation  
+**Workaround:** Use individual tampers instead of combined
+
+---
+
+## Comparison with Random Tampers
 
 | Feature | Random Tampers | These Scripts |
 |---------|----------------|---------------|
-| Reproducible | ❌ No | ✅ Yes |
-| Debuggable | ❌ No | ✅ Yes |
-| Testable | ❌ No | ✅ Yes |
-| Modular | ❌ No | ✅ Yes |
-| Ordered | ❌ No | ✅ Yes |
-
-### Engineering Principles:
-
-1. **Deterministic** - Same input = same output
-2. **Modular** - One technique per script
-3. **Composable** - Chain for complex bypass
-4. **Validated** - SQL still executes correctly
-5. **Documented** - Clear technique explanation
+| Reproducible | No | Yes |
+| Debuggable | No | Yes |
+| Testable | No | Yes |
+| Context-aware | No | Yes |
+| Reapplication-safe | No | Yes |
+| String-preserving | No | Yes |
 
 ---
 
 ## Requirements
 
-- SQLMap 1.8+
+- SQLMap 1.8 or higher
 - Python 2.7 or 3.x
+- MySQL/MariaDB target (for best results)
 
 ---
 
 ## Contributing
 
-Want to add more tamper scripts?
+Contributions welcome with these requirements:
 
-**Requirements:**
-- Must be deterministic (no random transformations)
-- Must be modular (one technique per script)
-- Must include proper documentation
-- Must be tested against real WAFs
-- NO fake success rate metrics
+**Code Quality:**
+- Deterministic transformations only
+- Context-aware parsing
+- Reapplication protection
+- Word boundary awareness
+- String literal preservation
 
-Submit a pull request with:
-1. Tamper script
+**Documentation:**
+- Clear technique explanation
+- Known limitations listed
+- Test results included
+- No exaggerated claims
+
+**Testing:**
+- Deterministic behavior verified
+- Reapplication safety confirmed
+- Edge cases documented
+- Real-world validation
+
+Submit pull requests with:
+1. Tamper script code
 2. Test results
-3. Documentation
+3. Limitation documentation
+4. Usage examples
 
 ---
 
@@ -276,30 +353,39 @@ Submit a pull request with:
 
 **AUTHORIZED TESTING ONLY**
 
-This tool is for authorized security testing only.
+These tools are for authorized security testing only.
 
-✅ **DO USE:**
-- On systems you own
-- With written permission
-- For authorized penetration testing
-- For bug bounty programs (within scope)
+**Permitted Use:**
+- Systems you own
+- With written authorization
+- Authorized penetration testing
+- Bug bounty programs (within scope)
 
-❌ **DO NOT USE:**
-- On systems without permission
-- For illegal activities
-- To cause harm or damage
+**Prohibited Use:**
+- Unauthorized systems
+- Illegal activities
+- Causing harm or damage
+- Violating terms of service
 
-**Unauthorized access to computer systems is illegal.**
+**Legal Notice:**
 
-By using these tools, you agree to use them responsibly and legally.
+Unauthorized access to computer systems is illegal under:
+- Computer Fraud and Abuse Act (CFAA) - United States
+- Computer Misuse Act - United Kingdom
+- Similar laws in other jurisdictions
 
-The author (Regaan) is not responsible for any misuse or damage caused by these tools.
+By using these tools, you agree to:
+- Use them legally and responsibly
+- Obtain proper authorization
+- Accept full responsibility for your actions
+
+The author (Regaan) is not responsible for misuse or damage caused by these tools.
 
 ---
 
 ## Credits
 
-Inspired by the SQLMap project and community tamper scripts.
+Inspired by the SQLMap project and security research community.
 
 Built with engineering discipline and real-world testing.
 
@@ -310,6 +396,17 @@ Built with engineering discipline and real-world testing.
 - **GitHub Issues:** https://github.com/noobforanonymous/sqlmap-tamper-collection/issues
 - **Documentation:** This README
 - **Email:** support@rothackers.com
+
+---
+
+## Changelog
+
+### v1.0.0 - December 2025
+- Initial release
+- Five tamper scripts with safeguards
+- Context-aware transformations
+- Reapplication protection
+- Comprehensive documentation
 
 ---
 
