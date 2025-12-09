@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+include requirements.txt
+recursive-include docs *.md
+recursive-include tamper_framework *.py
+recursive-include tamper_scripts *.py
+exclude tests/*
+exclude IMPLEMENTATION_PLAN.md
+exclude ROADMAP.md

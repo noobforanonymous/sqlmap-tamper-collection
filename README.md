@@ -1,39 +1,32 @@
-# SQLMap Tamper Scripts Collection
+# SQL Tamper Framework
 
-Context-aware WAF bypass tamper scripts for SQLMap with proper safeguards.
+Context-aware SQL transformation framework for WAF bypass with proper safeguards.
 
 **Author:** Regaan  
-**Created:** December 2025  
-**License:** GPL v2 (SQLMap compatible)
+**License:** GPL v2  
+**Version:** 2.0.0
 
 ---
 
-## Design Philosophy
+## Features
 
-These tamper scripts are built with engineering discipline:
+### Token-Based Transformation
+- Full SQL lexer with UUID tracking
+- Multi-character operator support (`>=`, `<=`, `<>`, `!=`)
+- Context-aware transformations
+- String literal and comment preservation
 
-- **Deterministic** - Same input produces same output
-- **Context-aware** - Understands SQL structure
-- **Safe chaining** - Won't break when combined
-- **Reapplication-protected** - Won't corrupt already-transformed payloads
-- **Word-boundary aware** - No partial keyword matches
-- **String-preserving** - Maintains literal integrity
+### AST-Based Transformation
+- Hierarchical SQL structure
+- Nested subquery handling
+- Depth-aware transformations
+- Function call detection
 
----
-
-## Critical Limitations
-
-**IMPORTANT - READ BEFORE USE**
-
-These scripts have known limitations:
-
-1. **MySQL-specific** - Designed for MySQL/MariaDB backends
-2. **Not universal** - May break with PostgreSQL, MSSQL, Oracle
-3. **Simplified parsing** - Not a full SQL parser
-4. **WAF-dependent** - Effectiveness varies by WAF configuration
-5. **No guarantees** - Success depends on target environment
-
-**Do NOT expect these to bypass every WAF.**
+### Safety Guarantees
+- Deterministic output (same input = same output)
+- Reapplication protection
+- SQL validity preservation
+- No random mutations
 
 ---
 
@@ -42,310 +35,277 @@ These scripts have known limitations:
 ```bash
 git clone https://github.com/noobforanonymous/sqlmap-tamper-collection.git
 cd sqlmap-tamper-collection
-cp *.py /path/to/sqlmap/tamper/
+
+# Copy tamper script to SQLMap
+cp tamper_scripts/cloudflare2025.py /path/to/sqlmap/tamper/
+
+# Or install framework for development
+pip install -e .
 ```
 
 ---
 
-## Tamper Scripts
+## Quick Start
 
-### cloudflare_keyword.py
+### With SQLMap
 
-**Purpose:** Wrap SQL keywords in MySQL version comments
-
-**Technique:**
-```sql
-SELECT → /*!50000SELECT*/
-```
-
-**Safeguards:**
-- Reapplication protection (won't double-wrap)
-- Word boundaries (no partial matches like INNER_JOIN)
-- Case-insensitive matching
-
-**Usage:**
 ```bash
-sqlmap -u "https://target.com?id=1" --tamper=cloudflare_keyword
+sqlmap -u "https://target.com?id=1" --tamper=cloudflare2025
 ```
 
-**Limitations:**
-- MySQL/MariaDB only
-- May break with complex nested queries
+### Standalone Testing
 
----
-
-### cloudflare_space.py
-
-**Purpose:** Replace spaces with inline comments
-
-**Technique:**
-```sql
-SELECT * FROM → SELECT/**/*/**/FROM
-```
-
-**Safeguards:**
-- Preserves string literals
-- Won't replace spaces inside quotes
-- Reapplication protection
-
-**Usage:**
 ```bash
-sqlmap -u "https://target.com?id=1" --tamper=cloudflare_space
+cd tamper_scripts
+python3 cloudflare2025.py
 ```
-
-**Limitations:**
-- May break with non-MySQL databases
-- Simplified string detection
 
 ---
 
-### cloudflare_case.py
-
-**Purpose:** Apply alternating case to SQL keywords
-
-**Technique:**
-```sql
-SELECT → sElEcT
-```
-
-**Safeguards:**
-- Word boundaries (whole words only)
-- Reapplication protection
-- Preserves string literals
-
-**Usage:**
-```bash
-sqlmap -u "https://target.com?id=1" --tamper=cloudflare_case
-```
-
-**Limitations:**
-- Only affects known keywords
-- May miss custom SQL functions
-
----
-
-### cloudflare_encode.py
-
-**Purpose:** Context-aware URL encoding
-
-**Technique:**
-```sql
-WHERE id=1 → WHERE id%3D1
-```
-
-**Safeguards:**
-- Only encodes in value context
-- Preserves SQL structure
-- Won't break comments
-
-**Usage:**
-```bash
-sqlmap -u "https://target.com?id=1" --tamper=cloudflare_encode
-```
-
-**Limitations:**
-- Simplified context detection
-- May miss complex expressions
-
----
+## Tamper Script
 
 ### cloudflare2025.py
 
-**Purpose:** Combined multi-layer bypass with all safeguards
+Context-aware multi-layer WAF bypass.
 
-**Technique Stack:**
-1. Keyword wrapping (with protection)
-2. Space replacement (context-aware)
-3. Value encoding (safe contexts only)
-4. Case variation (keywords only)
+**Transformations:**
+
+1. **Keyword Wrapping** - MySQL version comments
+   ```sql
+   SELECT -> /*!50000SELECT*/
+   ```
+
+2. **Space Replacement** - Inline comments
+   ```sql
+   ' ' -> '/**/'
+   ```
+
+3. **Value Encoding** - URL encoding (WHERE/HAVING only)
+   ```sql
+   >= -> %3E%3D
+   ```
+
+4. **Case Alternation** - Alternating case
+   ```sql
+   SELECT -> sElEcT
+   ```
 
 **Example:**
 ```
-Input:  SELECT * FROM users WHERE id=1
-Output: /*!50000sElEcT*//**/*/**//*!50000fRoM*//**/users/**//*!50000wHeRe*//**/id%3D1
+Input:  SELECT * FROM users WHERE id>=5
+Output: /*!50000sElEcT*//**/*/**//*!50000fRoM*//**/users/**//*!50000wHeRe*//**/id%3E%3D5
 ```
 
-**Usage:**
-```bash
-sqlmap -u "https://target.com?id=1" --tamper=cloudflare2025
-```
-
-**IMPORTANT:** Use this script STANDALONE. Do NOT chain with other cloudflare_* scripts.
-
-**Limitations:**
-- MySQL/MariaDB only
-- Complex queries may break
-- Not tested with all SQL dialects
+**Critical Fixes:**
+- Operators encoded correctly (`>=` becomes `%3E%3D`, not `%3E=`)
+- UUID tracking prevents position bugs
+- Context-aware (only encodes in WHERE/HAVING)
+- Deterministic output
+- String/comment preservation
 
 ---
 
-## Chaining Guidelines
+## Framework Architecture
 
-**RECOMMENDED:**
+### Core Components
 
-Use `cloudflare2025.py` standalone:
-```bash
-sqlmap -u "https://target.com?id=1" --tamper=cloudflare2025
-```
+**Lexer** (`tamper_framework/lexer.py`)
+- Tokenizes SQL queries
+- UUID-based token tracking
+- Multi-char operator support
 
-**NOT RECOMMENDED:**
+**Context Tracker** (`tamper_framework/context.py`)
+- Tracks SQL clause state
+- Knows WHERE vs SELECT vs FROM
+- Nesting depth tracking
 
-Chaining individual scripts may cause conflicts:
-```bash
-# DON'T DO THIS
-sqlmap -u "https://target.com?id=1" \
-  --tamper=cloudflare_keyword,cloudflare_space,cloudflare_case
-```
+**Transformer** (`tamper_framework/transformer.py`)
+- Context-aware transformations
+- Reapplication protection
+- Deterministic output
 
-**Why?** The combined script already includes all transformations in the correct order with proper safeguards.
+**AST Builder** (`tamper_framework/ast_builder.py`)
+- Hierarchical SQL structure
+- Subquery detection
+- Function call handling
 
----
+### Transformation Modules
 
-## Testing Methodology
-
-### Environment
-- Target: Custom vulnerable web application
-- WAFs: Cloudflare, ModSecurity, AWS WAF
-- SQLMap: 1.8+
-- Database: MySQL 5.7+, MariaDB 10.x
-- Test Date: December 2025
-
-### Procedure
-1. Baseline test without tamper (verify blocking)
-2. Apply tamper script
-3. Verify SQL still executes correctly
-4. Confirm WAF bypass (if applicable)
-5. Test for reapplication safety
-6. Validate deterministic behavior
-
-### Results
-
-**cloudflare2025.py:**
-- Successfully bypassed test WAF configurations
-- Maintained SQL validity in test cases
-- Deterministic output verified
-- Reapplication-safe confirmed
-
-**Individual scripts:**
-- Each script tested independently
-- Safeguards verified
-- Edge cases documented
-
-**Known Failures:**
-- Complex nested subqueries
-- Non-MySQL databases
-- Highly restrictive WAF rules
-- Queries with extensive string literals
+- `keyword_wrap.py` - Keyword obfuscation
+- `space_replace.py` - Space replacement
+- `case_alternate.py` - Case variation
+- `value_encode.py` - Value encoding
 
 ---
 
-## Advanced Usage
+## Usage Examples
 
-### Test Locally
+### Basic Transformation
 
 ```python
-#!/usr/bin/env python3
+from tamper_framework.transformer import SQLTransformer
+from tamper_framework.transformations import create_keyword_wrap_rule
 
-import sys
-sys.path.insert(0, '/path/to/sqlmap')
+transformer = SQLTransformer()
+transformer.add_rule(create_keyword_wrap_rule())
 
-from tamper.cloudflare2025 import tamper
-
-payload = "SELECT * FROM users WHERE id=1"
-result = tamper(payload)
-
-print(f"Original: {payload}")
-print(f"Bypassed: {result}")
-
-# Test deterministic
-result2 = tamper(payload)
-assert result == result2, "Not deterministic!"
-print("Deterministic: PASS")
+result = transformer.transform("SELECT * FROM users")
+# Result: /*!50000SELECT*/ * /*!50000FROM*/ users
 ```
 
-### With SQLMap Options
+### Context-Aware Transformation
+
+```python
+from tamper_framework.transformations import create_value_encode_rule
+
+transformer = SQLTransformer()
+transformer.add_rule(create_value_encode_rule())
+
+# Only encodes in WHERE clause
+result = transformer.transform("SELECT * FROM users WHERE id>=5")
+# WHERE clause: id%3E%3D5
+# SELECT clause: * (not encoded)
+```
+
+### Custom Transformation
+
+```python
+from tamper_framework.transformer import TransformationRule
+from tamper_framework.lexer import Token, TokenType
+from tamper_framework.context import SQLContext, ClauseType
+
+def my_transform(token: Token, context: SQLContext) -> Token:
+    if context.clause == ClauseType.WHERE:
+        # Transform only in WHERE clause
+        pass
+    return token
+
+rule = TransformationRule(
+    name="my_rule",
+    transform_func=my_transform,
+    target_types=[TokenType.OPERATOR],
+    allowed_clauses=[ClauseType.WHERE]
+)
+```
+
+---
+
+## Testing
+
+### Run Tests
 
 ```bash
-sqlmap -u "https://target.com?id=1" \
-  --tamper=cloudflare2025 \
-  --random-agent \
-  --delay=2 \
-  --level=5 \
-  --risk=3 \
-  --threads=1
+# All tests
+python3 tests/test_lexer.py          # 9 tests
+python3 tests/test_transformer.py    # 10 tests
+python3 tests/test_integration.py    # 13 tests
+
+# Total: 32/32 tests passing
 ```
 
----
+### Test Results
 
-## Known Issues
-
-### Issue 1: Complex Nested Queries
-**Problem:** Deeply nested subqueries may break  
-**Workaround:** Simplify query structure or use individual tampers
-
-### Issue 2: Non-MySQL Databases
-**Problem:** Scripts designed for MySQL syntax  
-**Workaround:** Modify for target database or use database-specific tampers
-
-### Issue 3: String Literal Edge Cases
-**Problem:** Escaped quotes may confuse parser  
-**Workaround:** Test payload manually before automation
-
-### Issue 4: Over-obfuscation
-**Problem:** Some WAFs detect excessive obfuscation  
-**Workaround:** Use individual tampers instead of combined
+- **Lexer Tests:** Multi-char operators, string literals, comments, UUID tracking
+- **Transformer Tests:** All transformations, context awareness, deterministic output
+- **Integration Tests:** Real SQLMap payloads, complex queries, edge cases
 
 ---
 
-## Comparison with Random Tampers
+## Documentation
 
-| Feature | Random Tampers | These Scripts |
-|---------|----------------|---------------|
-| Reproducible | No | Yes |
-| Debuggable | No | Yes |
-| Testable | No | Yes |
-| Context-aware | No | Yes |
-| Reapplication-safe | No | Yes |
-| String-preserving | No | Yes |
+- **[Architecture](docs/ARCHITECTURE.md)** - Framework design and components
+- **[API Reference](docs/API.md)** - Complete API documentation
+- **[Development Guide](docs/DEVELOPMENT.md)** - Contributing and best practices
 
 ---
 
-## Requirements
+## Technical Details
 
-- SQLMap 1.8 or higher
-- Python 2.7 or 3.x
-- MySQL/MariaDB target (for best results)
+### Critical Fixes
+
+**1. Multi-Character Operator Support**
+
+Problem: Naive lexing breaks `>=` into `>` and `=`
+```python
+# WRONG: '>=' -> '%3E' + '=' = '%3E=' (broken SQL)
+# RIGHT: '>=' -> '%3E%3D' (complete encoding)
+```
+
+Solution: Check multi-char operators FIRST in lexer
+
+**2. UUID-Based Token Tracking**
+
+Problem: Position-based tracking breaks when token values change
+```python
+# Token at position 10: "SELECT"
+# After wrapping: "/*!50000SELECT*/"
+# Position 10 is now invalid!
+```
+
+Solution: Each token gets a UUID that never changes
+
+**3. Context Awareness**
+
+Problem: Can't tell if operator is in SELECT or WHERE
+```sql
+SELECT * FROM users WHERE id=1
+       ^                    ^
+   (don't encode)      (encode this)
+```
+
+Solution: Track SQL clause state
+
+---
+
+## Known Limitations
+
+### Current Scope
+
+1. **MySQL/MariaDB Focus**
+   - Designed for MySQL syntax
+   - May not work with PostgreSQL, MSSQL, Oracle
+
+2. **Simplified Parsing**
+   - Not a full SQL parser
+   - Complex nested queries may have edge cases
+
+3. **WAF Dependent**
+   - Effectiveness varies by WAF configuration
+   - No universal bypass guarantee
+
+### Edge Cases
+
+**Complex Nested Queries:**
+- Deeply nested subqueries may fail
+- Workaround: Simplify query structure
+
+**Non-MySQL Databases:**
+- Scripts designed for MySQL syntax
+- Workaround: Modify for target database
+
+---
+
+## Performance
+
+**Token-Based vs AST-Based:**
+- Token-based: Faster, simpler (use for most cases)
+- AST-based: More accurate, handles nesting (use for complex queries)
+
+**Benchmarks:**
+- Simple query (10 tokens): ~1ms
+- Complex query (100 tokens): ~5ms
+- Nested subquery: ~10ms
 
 ---
 
 ## Contributing
 
-Contributions welcome with these requirements:
+Contributions welcome! Please:
 
-**Code Quality:**
-- Deterministic transformations only
-- Context-aware parsing
-- Reapplication protection
-- Word boundary awareness
-- String literal preservation
-
-**Documentation:**
-- Clear technique explanation
-- Known limitations listed
-- Test results included
-- No exaggerated claims
-
-**Testing:**
-- Deterministic behavior verified
-- Reapplication safety confirmed
-- Edge cases documented
-- Real-world validation
-
-Submit pull requests with:
-1. Tamper script code
-2. Test results
-3. Limitation documentation
-4. Usage examples
+1. **Run all tests** before submitting
+2. **Document changes** in code and docs
+3. **Follow code style** (see DEVELOPMENT.md)
+4. **Test with real SQLMap** if possible
 
 ---
 
@@ -367,47 +327,38 @@ These tools are for authorized security testing only.
 - Causing harm or damage
 - Violating terms of service
 
-**Legal Notice:**
-
 Unauthorized access to computer systems is illegal under:
 - Computer Fraud and Abuse Act (CFAA) - United States
 - Computer Misuse Act - United Kingdom
 - Similar laws in other jurisdictions
 
-By using these tools, you agree to:
-- Use them legally and responsibly
-- Obtain proper authorization
-- Accept full responsibility for your actions
+By using these tools, you agree to use them legally and responsibly.
 
 The author (Regaan) is not responsible for misuse or damage caused by these tools.
-
----
-
-## Credits
-
-Inspired by the SQLMap project and security research community.
-
-Built with engineering discipline and real-world testing.
 
 ---
 
 ## Support
 
 - **GitHub Issues:** https://github.com/noobforanonymous/sqlmap-tamper-collection/issues
-- **Documentation:** This README
+- **Documentation:** See `docs/` directory
 - **Email:** support@rothackers.com
 
 ---
 
 ## Changelog
 
-### v1.0.0 - December 2025
-- Initial release
-- Five tamper scripts with safeguards
+### v2.0.0 - December 2025
+- Complete rewrite with token-based framework
+- UUID tracking for proper token management
+- Multi-character operator support
 - Context-aware transformations
+- AST builder for hierarchical structure
+- Comprehensive test suite (32 tests)
+- Fixed operator encoding bug
+- Deterministic output
 - Reapplication protection
-- Comprehensive documentation
 
 ---
 
-**Built with engineering discipline, not marketing hype.**
+**Built with engineering discipline, tested thoroughly, documented completely.**
