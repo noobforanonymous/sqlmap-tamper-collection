@@ -8,19 +8,14 @@ LABEL org.opencontainers.image.licenses="GPL-2.0"
 
 WORKDIR /app
 
-# Copy framework
+# Copy framework files
 COPY tamper_framework/ /app/tamper_framework/
 COPY tamper_scripts/ /app/tamper_scripts/
-COPY tests/ /app/tests/
-COPY setup.py /app/
+COPY docs/ /app/docs/
 COPY README.md /app/
-COPY requirements.txt /app/
-
-# Install framework
-RUN pip install --no-cache-dir -e .
 
 # Set Python path
 ENV PYTHONPATH=/app
 
-# Default command
+# Default command - show version
 CMD ["python3", "-c", "from tamper_framework import __version__; print(f'SQL Tamper Framework v{__version__}')"]
