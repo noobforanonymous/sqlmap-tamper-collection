@@ -1,0 +1,6 @@
+# Development dependencies
+# No runtime dependencies - pure Python
+
+# Development tools
+pytest>=7.0.0
+black>=22.0.0
